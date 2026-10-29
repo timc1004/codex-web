@@ -1,5 +1,10 @@
 # 🔥 codexapp
 
+> [!WARNING]
+> **RECOVERED CODE — USE WITH CAUTION**
+>
+> This code was extracted from a repository that has since been deleted, then cleaned up for this release. It may still contain bugs, mistakes, incomplete features, or security issues. The cleanup is not a guarantee of correctness or security. Review and test it before relying on it, especially when exposing it beyond localhost or supplying credentials.
+
 ### 🚀 Run Codex App UI Anywhere: Linux, Windows, or Termux on Android 🚀
 
 [![npm](https://img.shields.io/npm/v/codexapp?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/codexapp)
