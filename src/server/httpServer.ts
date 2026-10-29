@@ -15,6 +15,7 @@ const spaEntryFile = join(distDir, 'index.html')
 
 export type ServerOptions = {
   password?: string
+  passwordBcrypt?: string
 }
 
 export type ServerInstance = {
@@ -83,7 +84,7 @@ export function createServer(options: ServerOptions = {}): ServerInstance {
     next()
   })
   const bridge = createCodexBridgeMiddleware()
-  const authSession = options.password ? createAuthSession(options.password) : null
+  const authSession = options.passwordBcrypt !== undefined || options.password ? createAuthSession(options.password, options.passwordBcrypt) : null
 
   // 1. Auth middleware (if password is set)
   if (authSession) {

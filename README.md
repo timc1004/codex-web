@@ -283,3 +283,15 @@ Built for speed, portability, and a little bit of chaos 😏
 The packaged CLI defaults to `127.0.0.1`. Use `node dist-cli/index.js --host 0.0.0.0 --no-open` to listen on all IPv4 interfaces, or supply a specific LAN IP with `--host`. IPv6 addresses are supported. `CODEXUI_HOST` sets the default; the CLI flag takes precedence. Vite development uses its existing `--host` option.
 
 Copy `.env.example` to `.env` and set `CODEXUI_HOST` and optionally `CODEXUI_PASSWORD`. The CLI does not load this file automatically: export the variables in your shell, or on Node 20+ run `node --env-file=.env dist-cli/index.js --no-open`. Leave the password unset to generate one. Keep password protection enabled when binding beyond localhost. Provider credentials belong in app settings or your private Codex configuration, never in frontend `VITE_*` variables or committed files.
+
+To store a hash instead of a plaintext password, set `CODEXUI_PASSWORD_BCRYPT` to a complete bcrypt hash. It takes precedence over `CODEXUI_PASSWORD`, `--password`, and `--no-password`; invalid or empty hashes stop startup. No plaintext password file is generated in this mode. Sign in using the password form; password-in-URL links are disabled. Passwords must be at most 72 UTF-8 bytes for bcrypt.
+
+Generate a hash locally after installing dependencies (Bash; the password is read silently and is not passed as a command argument):
+
+```bash
+read -rs -p 'Password: ' codexui_password
+printf '%s' "$codexui_password" | node --input-type=module -e "import { readFileSync } from 'node:fs'; import { hash, truncates } from 'bcryptjs'; const password = readFileSync(0, 'utf8'); if (truncates(password)) throw new Error('Password exceeds 72 UTF-8 bytes'); console.log(await hash(password, 12))"
+unset codexui_password
+```
+
+Store the resulting hash in your private `.env` with single quotes, for example `CODEXUI_PASSWORD_BCRYPT='$2b$12$…'` (use the complete generated hash). Load it using the environment-file command above.

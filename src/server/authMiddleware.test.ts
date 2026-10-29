@@ -27,3 +27,50 @@ it('limits the process credential to provider proxy routes', () => {
     rmSync(home, { recursive: true, force: true })
   }
 })
+
+it('uses bcrypt instead of plaintext for login and rejects hash-as-password', async () => {
+  const { hashSync } = await import('bcryptjs')
+  const { EventEmitter } = await import('node:events')
+  const home = mkdtempSync(join(tmpdir(), 'codex-bcrypt-test-'))
+  vi.stubEnv('CODEX_HOME', home)
+  const hash = hashSync('bcrypt-test-password', 4)
+  try {
+    const session = createAuthSession('ignored-plaintext', hash)
+    for (const [password, expected] of [['bcrypt-test-password', 200], ['ignored-plaintext', 401], ['incorrect', 401], [hash, 401], ['x'.repeat(73), 401]] as const) {
+      const req = Object.assign(new EventEmitter(), {
+        path: '/auth/login', method: 'POST', headers: { host: '192.168.1.10' },
+        socket: { remoteAddress: '192.168.1.20' }, setEncoding: vi.fn(),
+      })
+      let status = 200
+      const response = { setHeader: vi.fn(), status: vi.fn((code: number) => { status = code; return response }), json: vi.fn() }
+      const finished = new Promise<void>(resolve => response.json.mockImplementation(() => resolve()))
+      session.middleware(req as unknown as Request, response as unknown as Response, vi.fn())
+      req.emit('data', JSON.stringify({ password }))
+      req.emit('end')
+      await finished
+      expect(status).toBe(expected)
+      expect(response.setHeader.mock.calls.length).toBe(expected === 200 ? 1 : 0)
+    }
+  } finally { rmSync(home, { recursive: true, force: true }) }
+})
+
+it('fails closed for malformed bcrypt configuration', () => {
+  expect(() => createAuthSession('plaintext', 'not-a-hash')).toThrow('valid bcrypt hash')
+  expect(() => createAuthSession('plaintext', '')).toThrow('valid bcrypt hash')
+})
+
+it('does not accept plaintext password URLs when bcrypt is configured', async () => {
+  const { hashSync } = await import('bcryptjs')
+  const home = mkdtempSync(join(tmpdir(), 'codex-bcrypt-url-test-'))
+  vi.stubEnv('CODEX_HOME', home)
+  try {
+    const session = createAuthSession('ignored-plaintext', hashSync('test-password', 4))
+    const response = { setHeader: vi.fn(), status: vi.fn().mockReturnThis(), send: vi.fn(), redirect: vi.fn() }
+    const next = vi.fn()
+    session.middleware({ path: '/password=ignored-plaintext', method: 'GET', headers: { host: '192.168.1.10' }, socket: { remoteAddress: '192.168.1.20' } } as Request, response as unknown as Response, next)
+    expect(next).not.toHaveBeenCalled()
+    expect(response.redirect).not.toHaveBeenCalled()
+    expect(response.setHeader).not.toHaveBeenCalledWith('Set-Cookie', expect.anything())
+    expect(response.send).toHaveBeenCalled()
+  } finally { rmSync(home, { recursive: true, force: true }) }
+})

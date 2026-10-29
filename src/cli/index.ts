@@ -24,7 +24,7 @@ import {
   resolveAppServerRuntimeConfig,
 } from '../server/appServerRuntimeConfig.js'
 import { createServer as createApp } from '../server/httpServer.js'
-import { generatePassword } from '../server/password.js'
+import { resolvePassword } from '../server/password.js'
 import { spawnSyncCommand } from '../utils/commandInvocation.js'
 
 const program = new Command().name('codexui').description('Web interface for Codex app-server')
@@ -211,21 +211,6 @@ function ensureCodexInstalled(): string | null {
   const command = resolveCodexCommand()
   if (!command) throw new Error('Install the official Codex CLI yourself before starting the app; automatic downloads are disabled.')
   return command
-}
-
-type PasswordResolution = {
-  password: string | undefined
-  generated: boolean
-}
-
-function resolvePassword(input: string | boolean): PasswordResolution {
-  if (input === false) {
-    return { password: undefined, generated: false }
-  }
-  if (typeof input === 'string') {
-    return { password: input, generated: false }
-  }
-  return { password: generatePassword(), generated: true }
 }
 
 function getGeneratedPasswordPath(): string {
@@ -468,12 +453,13 @@ async function startServer(options: {
     console.log('\nCodex is not logged in. You can log in later via settings or run `codexui login`.\n')
   }
   const requestedPort = parseInt(options.port, 10)
-  const passwordResolution = resolvePassword(options.password)
+  const passwordBcrypt = process.env.CODEXUI_PASSWORD_BCRYPT
+  const passwordResolution = resolvePassword(options.password, passwordBcrypt)
   const password = passwordResolution.password
   const generatedPasswordPath = password && passwordResolution.generated
     ? await persistGeneratedPassword(password)
     : null
-  const { app, dispose, attachWebSocket } = createApp({ password })
+  const { app, dispose, attachWebSocket } = createApp({ password, passwordBcrypt })
   const server = createServer(app)
   attachWebSocket(server)
   const port = await listenWithFallback(server, requestedPort, options.host)

@@ -13,3 +13,9 @@ function randomGroup(length: number): string {
 export function generatePassword(): string {
   return `${randomGroup(3)}-${randomGroup(3)}-${randomGroup(3)}`
 }
+
+export function resolvePassword(input: string | boolean, passwordBcrypt?: string): { password: string | undefined; generated: boolean } {
+  if (passwordBcrypt !== undefined || input === false) return { password: undefined, generated: false }
+  if (typeof input === 'string') return { password: input, generated: false }
+  return { password: generatePassword(), generated: true }
+}

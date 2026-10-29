@@ -1,3 +1,4 @@
+import { compare } from 'bcryptjs'
 import { localProxyToken } from './localProxyAuth.js'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
@@ -222,7 +223,18 @@ export type AuthSession = {
   isRequestAuthorized: (req: IncomingMessage) => boolean
 }
 
-export function createAuthSession(password: string): AuthSession {
+export function createAuthSession(password: string | undefined, passwordBcrypt?: string): AuthSession {
+  if (passwordBcrypt !== undefined && !/^\$2[aby]\$(0[4-9]|[12][0-9]|3[01])\$[./A-Za-z0-9]{53}$/.test(passwordBcrypt)) {
+    throw new Error('CODEXUI_PASSWORD_BCRYPT must be a valid bcrypt hash')
+  }
+  const verifyPassword = async (provided: string): Promise<boolean> => {
+    if (passwordBcrypt !== undefined) {
+      // bcrypt silently truncates after 72 bytes; reject rather than accept a different password.
+      if (Buffer.byteLength(provided, 'utf8') > 72) return false
+      return compare(provided, passwordBcrypt).catch(() => false)
+    }
+    return password !== undefined && constantTimeCompare(provided, password)
+  }
   const validTokens = readPersistedSessions()
   if (pruneExpiredSessions(validTokens)) {
     tryPersistSessions(validTokens)
@@ -249,7 +261,7 @@ export function createAuthSession(password: string): AuthSession {
       let body = ''
       req.setEncoding('utf8')
       req.on('data', (chunk: string) => { body += chunk })
-      req.on('end', () => {
+      req.on('end', async () => {
         let parsed: { password?: string }
         try {
           parsed = JSON.parse(body) as { password?: string }
@@ -259,7 +271,7 @@ export function createAuthSession(password: string): AuthSession {
         }
 
         const provided = typeof parsed.password === 'string' ? parsed.password : ''
-        if (!constantTimeCompare(provided, password)) {
+        if (!(await verifyPassword(provided))) {
           res.status(401).json({ error: 'Invalid password' })
           return
         }
@@ -281,7 +293,7 @@ export function createAuthSession(password: string): AuthSession {
     // Handle one-click auth links like /password=<value>
     if (req.method === 'GET' && req.path.startsWith('/password=')) {
       const provided = req.path.slice('/password='.length)
-      if (constantTimeCompare(provided, password)) {
+      if (passwordBcrypt === undefined && password !== undefined && constantTimeCompare(provided, password)) {
         const token = randomBytes(32).toString('hex')
         const expiresAt = Date.now() + SESSION_TTL_MS
         validTokens.set(token, expiresAt)

@@ -24,3 +24,4 @@ Return to the [manual test index](../../tests.md).
 | [Qodo free-mode state write fixes](qodo-free-mode-state-write-fixes.md) |
 
 | [Privacy removal](privacy-removal.md) |
+| [Bcrypt password configuration](bcrypt-password.md) |
