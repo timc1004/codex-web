@@ -25,3 +25,5 @@ Return to the [manual test index](../../tests.md).
 | [Feature: npm run dev uses CLI server on Android](npm-run-dev-uses-cli-server-on-android.md) |
 | [Startup welcome log uses repository GitHub URL](startup-welcome-log-uses-repository-github-url.md) |
 | [Home route no longer crashes on dev startup](home-route-no-longer-crashes-on-dev-startup.md) |
+
+| [Configurable bind address](configurable-bind-address.md) |

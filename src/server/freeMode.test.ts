@@ -1,3 +1,4 @@
+import { localProxyToken } from './localProxyAuth'
 import { describe, expect, it } from 'vitest'
 import {
   FREE_MODE_DEFAULT_MODEL,
@@ -32,7 +33,7 @@ describe('unauthenticated free mode defaults', () => {
     expect(args).toContain(`model="${OPENCODE_ZEN_DEFAULT_MODEL}"`)
     expect(args).toContain('model_providers.opencode_zen.base_url="http://127.0.0.1:4173/codex-api/zen-proxy/v1"')
     expect(args).toContain('model_providers.opencode_zen.wire_api="responses"')
-    expect(args).toContain('model_providers.opencode_zen.experimental_bearer_token="zen-proxy-token"')
+    expect(args).toContain(`model_providers.opencode_zen.experimental_bearer_token="${localProxyToken}"`)
   })
 
   it('can register OpenCode Zen for legacy thread reads without selecting it as active provider', () => {
@@ -40,7 +41,7 @@ describe('unauthenticated free mode defaults', () => {
 
     expect(args).toContain('model_providers.opencode_zen.base_url="http://127.0.0.1:4173/codex-api/zen-proxy/v1"')
     expect(args).toContain('model_providers.opencode_zen.wire_api="responses"')
-    expect(args).toContain('model_providers.opencode_zen.experimental_bearer_token="zen-proxy-token"')
+    expect(args).toContain(`model_providers.opencode_zen.experimental_bearer_token="${localProxyToken}"`)
     expect(args).not.toContain('model_provider="opencode_zen"')
     expect(args.some((arg) => arg.startsWith('model="'))).toBe(false)
   })

@@ -1,3 +1,4 @@
+import { listenWithFallback } from './listen.js'
 import { createServer } from 'node:http'
 import { chmodSync, createWriteStream, existsSync, mkdirSync } from 'node:fs'
 import { readFile, stat, writeFile } from 'node:fs/promises'
@@ -275,7 +276,8 @@ function parseCloudflaredUrl(chunk: string): string | null {
   return urlMatch[urlMatch.length - 1] ?? null
 }
 
-function getAccessibleUrls(port: number): string[] {
+function getAccessibleUrls(port: number, host: string): string[] {
+  if (host !== '0.0.0.0' && host !== '::') return [`http://${host.includes(':') ? `[${host}]` : host}:${port}`]
   const urls = new Set<string>([`http://localhost:${String(port)}`])
   try {
     const interfaces = networkInterfaces()
@@ -369,30 +371,6 @@ async function startCloudflaredTunnel(command: string, localPort: number): Promi
   })
 }
 
-function listenWithFallback(server: ReturnType<typeof createServer>, startPort: number): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const attempt = (port: number) => {
-      const onError = (error: NodeJS.ErrnoException) => {
-        server.off('listening', onListening)
-        if (error.code === 'EADDRINUSE' || error.code === 'EACCES') {
-          attempt(port + 1)
-          return
-        }
-        reject(error)
-      }
-      const onListening = () => {
-        server.off('error', onError)
-        resolve(port)
-      }
-
-      server.once('error', onError)
-      server.once('listening', onListening)
-      server.listen(port, '127.0.0.1')
-    }
-
-    attempt(startPort)
-  })
-}
 
 function getCodexGlobalStatePath(): string {
   const codexHome = getCodexHomePath()
@@ -455,6 +433,7 @@ async function addProjectOnly(projectPath: string): Promise<void> {
 
 async function startServer(options: {
   port: string
+  host: string
   password: string | boolean
   tunnel: boolean
   open: boolean
@@ -497,8 +476,9 @@ async function startServer(options: {
   const { app, dispose, attachWebSocket } = createApp({ password })
   const server = createServer(app)
   attachWebSocket(server)
-  const port = await listenWithFallback(server, requestedPort)
+  const port = await listenWithFallback(server, requestedPort, options.host)
   process.env.CODEXUI_SERVER_PORT = String(port)
+  process.env.CODEXUI_SERVER_HOST = options.host
   let tunnelChild: ReturnType<typeof spawn> | null = null
   const tunnelUrl = null as string | null
 
@@ -510,11 +490,11 @@ async function startServer(options: {
     'Codex Web Local is running!',
     `  Version:  ${version}`,
     '',
-    `  Bind:     http://127.0.0.1:${String(port)}`,
+    `  Bind:     http://${options.host.includes(':') ? `[${options.host}]` : options.host}:${port}`,
     `  Codex sandbox: ${runtimeConfig.sandboxMode}`,
     `  Approval policy: ${runtimeConfig.approvalPolicy}`,
   ]
-  const accessUrls = getAccessibleUrls(port)
+  const accessUrls = getAccessibleUrls(port, options.host)
   if (accessUrls.length > 0) {
     lines.push(`  Local:    ${accessUrls[0]}`)
     for (const accessUrl of accessUrls.slice(1)) {
@@ -544,7 +524,7 @@ async function startServer(options: {
     qrcode.generate(tunnelQrUrl, { small: true })
     console.log('')
   }
-  if (options.open) openBrowser(`http://localhost:${String(port)}`)
+  if (options.open) openBrowser(accessUrls[0] ?? `http://localhost:${String(port)}`)
 
   function shutdown() {
     console.log('\nShutting down...')
@@ -577,7 +557,8 @@ program
   .argument('[projectPath]', 'project directory to open on launch')
   .option('--open-project <path>', 'open project directory on launch (Codex desktop parity)')
   .option('-p, --port <port>', 'port to listen on', '5900')
-  .option('--password <pass>', 'set a specific password')
+  .option('--host <address>', 'IP address or hostname to bind', process.env.CODEXUI_HOST?.trim() || '127.0.0.1')
+  .option('--password <pass>', 'set a specific password', process.env.CODEXUI_PASSWORD)
   .option('--no-password', 'disable password protection')
   .option('--tunnel', 'start cloudflared tunnel (default is auto by Tailscale detection)', true)
   .option('--no-tunnel', 'disable cloudflared tunnel startup')
@@ -593,6 +574,7 @@ program
     projectPath: string | undefined,
     opts: {
       port: string
+  host: string
       password: string | boolean
       tunnel: boolean
       open: boolean

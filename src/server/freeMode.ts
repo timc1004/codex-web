@@ -1,3 +1,5 @@
+import { localProxyOrigin, localProxyToken } from './localProxyAuth.js'
+
 // Bundled third-party credentials must never be used for user traffic.
 export function getRandomFreeKey(): string | null { return null }
 export function getFreeKeyCount(): number { return 0 }
@@ -157,10 +159,10 @@ export function filterOpenCodeZenModelsForAuthState(modelIds: string[], apiKey: 
 function getOpenCodeZenProviderConfigArgs(serverPort?: number): string[] {
   const providerConfigKey = `model_providers.${OPENCODE_ZEN_RUNTIME_PROVIDER_ID}`
   const baseUrl = serverPort
-    ? `http://127.0.0.1:${serverPort}/codex-api/zen-proxy/v1`
+    ? `${localProxyOrigin(serverPort)}/codex-api/zen-proxy/v1`
     : OPENCODE_ZEN_BASE_URL
   const authArgs: string[] = serverPort
-    ? ['-c', `${providerConfigKey}.experimental_bearer_token="zen-proxy-token"`]
+    ? ['-c', `${providerConfigKey}.experimental_bearer_token="${localProxyToken}"`]
     : ['-c', `${providerConfigKey}.env_key="OPENCODE_ZEN_API_KEY"`]
 
   return [
@@ -192,11 +194,11 @@ export function getFreeModeConfigArgs(state: FreeModeState, serverPort?: number)
   if (state.provider === 'custom' && state.customBaseUrl) {
     const providerConfigKey = `model_providers.${CUSTOM_RUNTIME_PROVIDER_ID}`
     const baseUrl = serverPort
-      ? `http://127.0.0.1:${serverPort}/codex-api/custom-proxy/v1`
+      ? `${localProxyOrigin(serverPort)}/codex-api/custom-proxy/v1`
       : state.customBaseUrl
     const wireApi = serverPort ? 'responses' : (state.wireApi || 'responses')
     const authArgs: string[] = serverPort
-      ? ['-c', `${providerConfigKey}.experimental_bearer_token="custom-proxy-token"`]
+      ? ['-c', `${providerConfigKey}.experimental_bearer_token="${localProxyToken}"`]
       : ['-c', `${providerConfigKey}.env_key="CUSTOM_ENDPOINT_API_KEY"`]
     const modelArgs: string[] = state.model?.trim()
       ? ['-c', `model="${state.model.trim()}"`]
@@ -214,9 +216,9 @@ export function getFreeModeConfigArgs(state: FreeModeState, serverPort?: number)
   if (!state.apiKey) return []
   const providerConfigKey = `model_providers.${FREE_MODE_RUNTIME_PROVIDER_ID}`
   const baseUrl = serverPort
-    ? `http://127.0.0.1:${serverPort}/codex-api/openrouter-proxy/v1`
+    ? `${localProxyOrigin(serverPort)}/codex-api/openrouter-proxy/v1`
     : FREE_MODE_BASE_URL
-  const bearerToken = serverPort ? 'openrouter-proxy-token' : state.apiKey
+  const bearerToken = serverPort ? localProxyToken : state.apiKey
   return [
     '-c', `model="${state.model}"`,
     '-c', `model_provider="${FREE_MODE_RUNTIME_PROVIDER_ID}"`,

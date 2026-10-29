@@ -277,3 +277,9 @@ Built for speed, portability, and a little bit of chaos 😏
 
 ---
 
+
+### Bind address and private configuration
+
+The packaged CLI defaults to `127.0.0.1`. Use `node dist-cli/index.js --host 0.0.0.0 --no-open` to listen on all IPv4 interfaces, or supply a specific LAN IP with `--host`. IPv6 addresses are supported. `CODEXUI_HOST` sets the default; the CLI flag takes precedence. Vite development uses its existing `--host` option.
+
+Copy `.env.example` to `.env` and set `CODEXUI_HOST` and optionally `CODEXUI_PASSWORD`. The CLI does not load this file automatically: export the variables in your shell, or on Node 20+ run `node --env-file=.env dist-cli/index.js --no-open`. Leave the password unset to generate one. Keep password protection enabled when binding beyond localhost. Provider credentials belong in app settings or your private Codex configuration, never in frontend `VITE_*` variables or committed files.

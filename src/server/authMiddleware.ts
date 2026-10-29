@@ -1,3 +1,4 @@
+import { localProxyToken } from './localProxyAuth.js'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import type { IncomingMessage } from 'node:http'
@@ -230,6 +231,12 @@ export function createAuthSession(password: string): AuthSession {
   const middleware: RequestHandler = (req: Request, res: Response, next: NextFunction): void => {
     if (pruneExpiredSessions(validTokens)) {
       tryPersistSessions(validTokens)
+    }
+
+    if (/^\/codex-api\/(zen|openrouter|custom)-proxy\/v1(?:\/|$)/.test(req.path)
+      && constantTimeCompare(req.headers.authorization ?? '', `Bearer ${localProxyToken}`)) {
+      next()
+      return
     }
 
     if (isAuthorizedByRequestLike(req.socket.remoteAddress, req.headers.host, req.headers.cookie, validTokens)) {
