@@ -1,0 +1,22 @@
+node_modules/
+dist/
+dist-cli/
+output/
+.playwright-cli/
+test-results/
+*.tsbuildinfo
+
+package-lock.json
+pnpm-lock.yaml
+.codex/
+.env.local
+
+.omx/
+.worktrees/
+
+# Local credentials and TLS private material
+.env
+.env.*
+!.env.example
+.aws/
+.cert/
